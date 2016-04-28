@@ -1,0 +1,12 @@
+{
+  "id": 123,
+  "states": {
+    "@uri": "str1234",
+    "state": [
+      "abcd1234","4321dcba"
+    ]
+  },
+  "@uri": "str1234",
+  "name": "str1234",
+  "population": 123
+}

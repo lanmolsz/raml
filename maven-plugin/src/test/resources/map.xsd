@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<xs:schema version="1.0" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+    <xs:element name="personMap" type="personMap">
+        <xs:unique name="keyUnique">
+            <xs:selector xpath="entry" />
+            <xs:field xpath="@key" />
+        </xs:unique>
+    </xs:element>
+    <xs:complexType name="personMap">
+        <xs:sequence>
+            <xs:element name="entry" type="entry" minOccurs="0" maxOccurs="unbounded" />
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType  name="entry">
+        <xs:sequence>
+            <xs:element name="value" type="company" minOccurs="0" />
+        </xs:sequence>
+        <xs:attribute name="key" type="xs:string" use="required" />
+    </xs:complexType>
+
+    <xs:complexType name="company">
+        <xs:sequence>
+            <xs:element name="name" type="xs:string" minOccurs="0"/>
+            <xs:element name="scale" type="xs:string" minOccurs="0"/>
+            <xs:element name="type" type="xs:string" minOccurs="0"/>
+        </xs:sequence>
+    </xs:complexType>
+</xs:schema>
+
