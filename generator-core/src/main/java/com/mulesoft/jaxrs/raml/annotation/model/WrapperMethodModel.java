@@ -64,18 +64,13 @@ public class WrapperMethodModel implements IMethodModel{
 	}
 
 	@Override
-	public List<ITypeModel> getJAXBTypes() {
-		return originalMethod.getJAXBTypes();
-	}
-
-	@Override
 	public Class<?> getJavaType() {
 		return originalMethod.getJavaType();
 	}
 
 	@Override
-	public List<ITypeParameter> getTypeParameters() {
-		return originalMethod.getTypeParameters();
+	public ITypeModel getDeclaredType() {
+		return originalMethod.getDeclaredType();
 	}
 
 	@Override

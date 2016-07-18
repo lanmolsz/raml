@@ -5,11 +5,12 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.raml</groupId>
     <artifactId>jaxrs-to-raml</artifactId>
-    <version>1.3.4</version>
+    <version>1.3.7</version>
     <packaging>pom</packaging>
+    <url>https://github.com/lanmolsz/raml</url>
     <modules>
-        <module>generator-annotations</module>
         <module>generator-core</module>
+        <module>generator-annotations</module>
         <module>maven-plugin</module>
         <module>usage/array-with-raml</module>
         <module>usage/collection-with-raml</module>
@@ -19,50 +20,15 @@
     </modules>
     <distributionManagement>
         <repository>
-            <id>mule-ee-releases</id>
-            <name>Mule Release Repository</name>
-            <url>https://repository-master.mulesoft.org/nexus/content/repositories/releases/</url>
+            <id>nexus-releases</id>
+            <url>http://10.200.2.37/content/repositories/releases</url>
         </repository>
         <snapshotRepository>
-            <id>mule-snapshots</id>
-            <name>Mule Snapshot Repository</name>
-            <url>https://repository-master.mulesoft.org/nexus/content/repositories/snapshots/</url>
-            <uniqueVersion>false</uniqueVersion>
+            <id>nexus-snapshots</id>
+            <url>http://10.200.2.37/content/repositories/snapshots</url>
         </snapshotRepository>
     </distributionManagement>
-    <profiles>
-        <profile>
-            <id>sonatype</id>
-            <distributionManagement>
-                <snapshotRepository>
-                    <id>ossrh</id>
-                    <url>https://oss.sonatype.org/content/repositories/snapshots</url>
-                </snapshotRepository>
-                <repository>
-                    <id>ossrh</id>
-                    <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
-                </repository>
-            </distributionManagement>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-gpg-plugin</artifactId>
-                        <version>1.5</version>
-                        <executions>
-                            <execution>
-                                <id>sign-artifacts</id>
-                                <phase>verify</phase>
-                                <goals>
-                                    <goal>sign</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-    </profiles>
+
     <build>
         <plugins>
             <plugin>
@@ -70,93 +36,33 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>2.3.2</version>
                 <configuration>
-                    <source>1.6</source>
-                    <target>1.6</target>
+                    <source>1.7</source>
+                    <target>1.7</target>
                     <encoding>UTF-8</encoding>
                     <fork>true</fork>
                 </configuration>
             </plugin>
-            <plugin>
-                <groupId>org.eclipse.tycho</groupId>
-                <artifactId>tycho-maven-plugin</artifactId>
-                <version>${tycho.version}</version>
-                <extensions>true</extensions>
-            </plugin>
-            <plugin>
-                <groupId>org.eclipse.tycho</groupId>
-                <artifactId>target-platform-configuration</artifactId>
-                <version>${tycho.version}</version>
-                <!-- TODO 实际上这个插件支持这种配置，但是因为这个插件没有更新XSD，ide就会一直报错，我受不了这个报错 先注释掉它
-                <configuration>
-                    <environments>
-                        <environment>
-                            <os>linux</os>
-                            <ws>gtk</ws>
-                            <arch>x86</arch>
-                        </environment>
-                        <environment>
-                            <os>linux</os>
-                            <ws>gtk</ws>
-                            <arch>x86_64</arch>
-                        </environment>
-                        <environment>
-                            <os>win32</os>
-                            <ws>win32</ws>
-                            <arch>x86</arch>
-                        </environment>
-                        <environment>
-                            <os>win32</os>
-                            <ws>win32</ws>
-                            <arch>x86_64</arch>
-                        </environment>
-                        <environment>
-                            <os>macosx</os>
-                            <ws>cocoa</ws>
-                            <arch>x86_64</arch>
-                        </environment>
-                    </environments>
-                </configuration>
-                -->
-            </plugin>
         </plugins>
     </build>
+
     <properties>
-        <tycho.version>0.25.0</tycho.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <kepler-repo.url>http://download.eclipse.org/releases/kepler</kepler-repo.url>
     </properties>
 
     <repositories>
         <repository>
             <id>kepler</id>
-            <url>${kepler-repo.url}</url>
+            <url>http://download.eclipse.org/releases/kepler</url>
             <layout>p2</layout>
         </repository>
     </repositories>
+
+
     <name>JAXRS to RAML transformers</name>
     <description>JAXRS to RAML transformers pure edition</description>
     <scm>
-        <url>https://github.com/mulesoft/raml-for-jax-rs.git</url>
-        <connection>https://github.com/mulesoft/raml-for-jax-rs.git</connection>
-        <developerConnection>Pavel Petrochenko(petrochenko.pavel.a@gmail.com)</developerConnection>
+        <url>https://github.com/lanmolsz/raml.git</url>
+        <connection>https://github.com/lanmolsz/raml.git</connection>
+        <developerConnection>279184665@qq.com</developerConnection>
     </scm>
-    <organization>
-        <name>Mulesoft</name>
-        <url>http://mulesoft.com</url>
-    </organization>
-    <url>https://github.com/mulesoft/raml-for-jax-rs</url>
-    <licenses>
-        <license>
-            <name>The Apache License, Version 2.0</name>
-            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
-        </license>
-    </licenses>
-    <developers>
-        <developer>
-            <name>Pavel Petrochenko</name>
-            <email>petrochenko.pavel.a@gmail.com</email>
-            <organization>Mulesoft</organization>
-            <organizationUrl>http://mulesoft.com</organizationUrl>
-        </developer>
-    </developers>
 </project>

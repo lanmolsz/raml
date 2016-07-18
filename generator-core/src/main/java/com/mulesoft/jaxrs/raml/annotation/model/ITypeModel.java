@@ -9,7 +9,7 @@ import java.util.List;
  * @author kor
  * @version $Id: $Id
  */
-public interface ITypeModel extends IBasicModel, IGenericElement{
+public interface ITypeModel extends IBasicModel{
 
 	
 	/**

@@ -24,11 +24,11 @@ public interface IMember extends IBasicModel{
 	boolean isPublic();
 	
 	/**
-	 * <p>getJAXBType.</p>
+	 * <p>getDeclaredType.</p>
 	 *
 	 * @return a {@link com.mulesoft.jaxrs.raml.annotation.model.ITypeModel} object.
 	 */
-	List<ITypeModel> getJAXBTypes();
+	ITypeModel getDeclaredType();
 	/**
 	 * <p>getJavaType.</p>
 	 *

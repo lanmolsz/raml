@@ -28,7 +28,7 @@ import com.mulesoft.jaxrs.raml.annotation.model.ITypeModel;
  * @author kor
  * @version $Id: $Id
  */
-public class MethodModel extends GenericElementModel implements IMethodModel {
+public class MethodModel extends MemberModel implements IMethodModel {
 
 	/**
 	 * <p>Constructor for MethodModel.</p>
@@ -39,10 +39,8 @@ public class MethodModel extends GenericElementModel implements IMethodModel {
 	private ArrayList<IParameterModel> parameters = new ArrayList<IParameterModel>();
 	
 	private ITypeModel returnedType;
-	
-	
+
 	private ITypeModel bodyType;
-	
 
 	/**
 	 * <p>Getter for the field <code>parameters</code>.</p>

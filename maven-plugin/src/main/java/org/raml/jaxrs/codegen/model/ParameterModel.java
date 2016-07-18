@@ -23,7 +23,7 @@ import com.mulesoft.jaxrs.raml.annotation.model.IParameterModel;
  * @author kor
  * @version $Id: $Id
  */
-public class ParameterModel extends BasicModel implements IParameterModel{
+public class ParameterModel extends MemberModel implements IParameterModel{
 
 	/**
 	 * <p>Constructor for ParameterModel.</p>

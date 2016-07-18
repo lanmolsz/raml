@@ -48,40 +48,6 @@ public class JAXBElementProperty extends JAXBProperty {
     }
 
     /**
-     * <p>getJAXBType.</p>
-     *
-     * @return a {@link com.mulesoft.jaxrs.raml.jaxb.JAXBType} object.
-     */
-    public List<JAXBType> getJAXBTypes() {
-        if (this.originalModel.hasAnnotation(XmlJavaTypeAdapter.class.getSimpleName())) {
-            ArrayList<JAXBType> list = new ArrayList<JAXBType>();
-            if (this.getStructureType() == StructureType.MAP) {
-                list.add(registry.getJAXBModel(new ReflectionType(String.class)));
-                list.add(registry.getJAXBModel(new ReflectionType(Object.class)));
-            } else {
-                String adapter = originalModel.getAnnotationValue(XmlJavaTypeAdapter.class.getSimpleName());
-                ITypeModel adapterClass = this.ownerType.resolveClass(adapter);
-                if (adapterClass == null) {
-                    list.add(registry.getJAXBModel(new ReflectionType(Object.class)));
-                } else {
-                    IMethodModel[] methods = adapterClass.getMethods();
-                    for (IMethodModel m : methods) {
-                        if (m.getName().equals("marshal")) {
-                            ITypeModel returnedType = m.getReturnedType();
-                            if (returnedType != null) {
-                                list.add(registry.getJAXBModel(returnedType));
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-            return list;
-        }
-        return registry.getJAXBModels(((IMember) originalModel).getJAXBTypes()); //TODO
-    }
-
-    /**
      * {@inheritDoc}
      */
     @Override

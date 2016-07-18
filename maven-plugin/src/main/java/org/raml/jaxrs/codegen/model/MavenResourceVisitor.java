@@ -19,16 +19,16 @@ import java.io.File;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
-import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class MavenResourceVisitor extends RuntimeResourceVisitor {
+public class MavenResourceVisitor extends ResourceVisitor {
 	protected JAXBRegistry registry = new JAXBRegistry();
 	protected SchemaModelBuilder builder = new SchemaModelBuilder(registry,config);
 
 	public MavenResourceVisitor(File outputFile, ClassLoader classLoader,IRamlConfig config) {
-		super(outputFile, classLoader,config);
+		super(outputFile, classLoader);
+		setPreferences(config);
 	}
 
 	public void visitAll(Collection<ITypeModel> models){
@@ -43,24 +43,17 @@ public class MavenResourceVisitor extends RuntimeResourceVisitor {
 
 	@Override
 	protected boolean generateXMLSchema(ITypeModel model) {
-		String name = model.getFullyQualifiedName();
-		if(name.equals("void")||name.equals("java.lang.Void")){
-			return false;
-		}
 		Class<?> element = model.getActualClass();
-		if(element != null){
-			return generateSchemaAndExample(model, element);
+		if(element != null && element != Void.TYPE){
+			ISchemaType schemaModel = builder.buildSchemaModel(registry.getJAXBModel(model));
+			generateSchema(new JsonSchemaSerializer(),model,schemaModel);
+			generateSchema(new XSDModelSerializer(),model,schemaModel);
+			generateExample(model ,element ,schemaModel);
+			return true;
 		}
 		return false;
 	}
 
-	private boolean generateSchemaAndExample(ITypeModel model, Class<?> element) {
-		ISchemaType schemaModel = builder.buildSchemaModel(registry.getJAXBModel(model));
-		generateSchema(new JsonSchemaSerializer(),model,schemaModel);
-		generateSchema(new XSDModelSerializer(),model,schemaModel);
-		generateExample(model ,element ,schemaModel);
-		return true;
-	}
 
 	private void generateSchema(SchemaTypeSerializer serializer,ITypeModel model,ISchemaType schemaModel){
 		try {
@@ -75,35 +68,8 @@ public class MavenResourceVisitor extends RuntimeResourceVisitor {
 	}
 
 	private File getFile(ITypeModel model, String fileType, String mediaType){
-		String fileName = transformGeneric(model.getGenericName());
-		while(fileName.contains("[]")) {
-			fileName = fileName.replace("[]","-array");
-		}
+		String fileName = getSimpleQualifiedName(model.getGenericName());
 		return constructFileLocation(fileName,fileType,mediaType,null);
-	}
-
-	private String transformGeneric(String genericName){
-		if(genericName.equals("?")) {
-			return "object";
-		}
-		if(genericName.contains("<")) {
-			String simpleName = getSimpleName(genericName.substring(0,genericName.indexOf("<")));
-			String parameterTypeName =  genericName.substring(genericName.indexOf("<") + 1,genericName.lastIndexOf(">"));
-			String[] parameterTypes = parameterTypeName.split(",");
-			for (String className : parameterTypes) {
-				simpleName = simpleName +"-" + transformGeneric(className);
-			}
-			return simpleName;
-		} else {
-			return getSimpleName(genericName);
-		}
-	}
-
-	private String getSimpleName(String className){
-		if(className.contains(".")) {
-			return firstLetterToLowerCase(className.substring(className.lastIndexOf(".")+1));
-		}
-		return firstLetterToLowerCase(className);
 	}
 
 	private void generateExample(ITypeModel model, Class<?> element,ISchemaType schemaModel){

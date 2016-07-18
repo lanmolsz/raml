@@ -157,20 +157,16 @@ public class APTMethodModel extends APTGenericElement implements IMethodModel {
 		return false;
 	}
 
-
-	/** {@inheritDoc} */
-	@Override
-	public List<ITypeModel> getJAXBTypes() {
-		return null;
-	}
-
-
 	/** {@inheritDoc} */
 	@Override
 	public Class<?> getJavaType() {
 		return null;
 	}
 
+	@Override
+	public ITypeModel getDeclaredType() {
+		return null;
+	}
 
 	public boolean hasGenericReturnType() {
 		return isGeneric;

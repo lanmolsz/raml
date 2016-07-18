@@ -110,14 +110,15 @@ public class APTFieldModel extends APTModel implements IFieldModel{
 	}
 	/** {@inheritDoc} */
 	@Override
-	public List<ITypeModel> getJAXBTypes() {
-		return null;
-	}
-	/** {@inheritDoc} */
-	@Override
 	public Class<?> getJavaType() {
 		return null;
 	}
+
+	@Override
+	public ITypeModel getDeclaredType() {
+		return null;
+	}
+
 	public boolean isGeneric() {
 		return isGeneric;
 	}

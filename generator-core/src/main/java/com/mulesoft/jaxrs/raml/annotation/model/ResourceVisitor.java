@@ -3,7 +3,10 @@ package com.mulesoft.jaxrs.raml.annotation.model;
 import com.mulesoft.jaxrs.raml.annotation.model.reflection.ReflectionType;
 import com.mulesoft.jaxrs.raml.jaxb.*;
 import com.mulesoft.jaxrs.raml.jsonschema.*;
+import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections.SetUtils;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 import org.codehaus.jettison.json.JSONException;
 import org.raml.emitter.IRamlHierarchyTarget;
@@ -130,8 +133,8 @@ public abstract class ResourceVisitor {
 
 	protected RAMLModelHelper spec = new RAMLModelHelper();
 
-	protected String[] classConsumes;
-	protected String[] classProduces;
+	protected Set<String> classConsumes = new HashSet<String>();
+	protected Set<String> classProduces = new HashSet<String>();
 
 	protected HashSet<ITypeModel> consumedTypes = new HashSet<ITypeModel>();
 
@@ -180,25 +183,25 @@ public abstract class ResourceVisitor {
 			
 			String producesString = apiAnn.getValue(PRODUCES.toLowerCase());
 			if(producesString!=null&&!producesString.isEmpty()){
-				classProduces = producesString.split(",");
+				String[] classProduces = producesString.split(",");
 				for(int i = 0 ; i < classProduces.length ; i++){
-					classProduces[i] = classProduces[i].trim();
+					this.classProduces.add(classProduces[i].trim());
 				}
 			}
 			
 			String consumesString = apiAnn.getValue(CONSUMES.toLowerCase());
 			if(consumesString!=null&&!consumesString.isEmpty()){
-				classConsumes = consumesString.split(",");
+				String[] classConsumes = consumesString.split(",");
 				for(int i = 0 ; i < classConsumes.length ; i++){
-					classConsumes[i] = classConsumes[i].trim();
+					this.classConsumes.add(classConsumes[i].trim());
 				}
 			}
 		}
-		if(classConsumes==null||classConsumes.length==0){
-			classConsumes = t.getAnnotationValues(CONSUMES);
+		if(classConsumes.size()==0 && t.getAnnotationValues(CONSUMES)!=null){
+			classConsumes.addAll(Arrays.asList(t.getAnnotationValues(CONSUMES)));
 		}
-		if(classProduces==null||classProduces.length==0){
-			classProduces = t.getAnnotationValues(PRODUCES);
+		if(classProduces.size()==0 && t.getAnnotationValues(PRODUCES) != null){
+			classProduces.addAll(Arrays.asList(t.getAnnotationValues(PRODUCES)));
 		}
 		
 		String annotationValue = t.getAnnotationValue(PATH);		
@@ -258,31 +261,24 @@ public abstract class ResourceVisitor {
 	protected boolean generateXMLSchema(ITypeModel type){
 		return false;
 	}
-	
-	/**
-	 * <p>generateXMLExampleJAXB.</p>
-	 *
-	 * @param t a {@link com.mulesoft.jaxrs.raml.annotation.model.ITypeModel} object.
-	 * @return a {@link java.lang.String} object.
-	 */
-	protected String generateXMLExampleJAXB(ITypeModel t){
-		JAXBRegistry rs=new JAXBRegistry();
-		JAXBType jaxbModel = rs.getJAXBModel(t);
-		if (jaxbModel!=null){
-			XMLWriter writer = new XMLWriter();
-			ExampleGenerator gen=new ExampleGenerator(writer);
-			gen.generateXML(jaxbModel);
-			return writer.toString();
+
+
+
+	class RamlHierarchy implements IRamlHierarchyTarget{
+		private String content;
+		@Override
+		public void write(String path, String content) {
+
 		}
-		return null;
-	}
 
-	class StringHolder {
-		String content;
+		@Override
+		public void writeRoot(String content) {
+			this.content = content;
+		}
+		public String getContent(){
+			return content;
+		}
 	}
-	
-	
-
 	/**
 	 * <p>getRaml.</p>
 	 *
@@ -292,19 +288,9 @@ public abstract class ResourceVisitor {
 		spec.optimize();
 		RamlEmitterV2 emmitter = new RamlEmitterV2();
 		emmitter.setSingle(false);
-		final StringHolder holder = new StringHolder();
-		emmitter.dump(new IRamlHierarchyTarget() {
-
-			public void write(String path, String content) {
-
-			}
-
-			public void writeRoot(String content) {
-				holder.content = content;
-			}
-
-		}, spec.getCoreRaml());
-		return holder.content;
+		RamlHierarchy ramlHierarchy = new RamlHierarchy();
+		emmitter.dump(ramlHierarchy, spec.getCoreRaml());
+		return ramlHierarchy.getContent();
 	}
 
 	private void visit(IMethodModel m, String path, ITypeModel ownerType) {
@@ -331,7 +317,7 @@ public abstract class ResourceVisitor {
 			
 			IDocInfo documentation = getDocumentation(m);
 
-			String returnName = null;
+			String returnName = getSimpleQualifiedName(m.getReturnedType().getGenericName());
 			String parameterName = null;
 
 			ITypeModel returnedType = m.getReturnedType();
@@ -344,7 +330,6 @@ public abstract class ResourceVisitor {
 				}
 				if (generateSchema) {
 					generateXMLSchema(returnedType);
-					returnName = firstLetterToLowerCase(returnedType.getName());
 				}
 				if (hasPath) {
 					if (consumedTypes.add(returnedType)) {
@@ -468,7 +453,8 @@ public abstract class ResourceVisitor {
 		res.getActions().put(adjustedActionType, action);
 
 		processResponses(m, action, documentation,returnName);
-		boolean hasFormParameters = false;
+
+		MimeType bodyType = new MimeType();
 		IParameterModel[] parameters = m.getParameters();
 		for (IParameterModel pm : parameters) {
 			if (pm.hasAnnotation(QUERY_PARAM)) {
@@ -489,53 +475,53 @@ public abstract class ResourceVisitor {
 				String paramName = configureParam(pm, value2, documentation,paramAnnotation);
 				res.getUriParameters().put(paramName, value2);
 			}
-			if (pm.hasAnnotation(FORM_PARAM)) {
-				hasFormParameters = true;
+			if (pm.hasAnnotation(FORM_PARAM)) { //TODO 这里并不标准
+				IAnnotationModel paramAnnotation = pm.getAnnotation(FORM_PARAM);
+				FormParameter vl = new FormParameter();
+				String paramName = configureParam(pm,vl,documentation,paramAnnotation);
+				if(!bodyType.getFormParameters().containsKey(paramName)) {
+					bodyType.getFormParameters().put(paramName,new ArrayList<FormParameter>());
+				}
+				bodyType.getFormParameters().get(paramName).add(vl);
 			}
 		}
-
-
-		boolean hasBody = m.getBodyType()!=null;
-		Set<String> consumes = new HashSet<String>();
-		String[] consumesValue = extractMediaTypes(m, CONSUMES, classConsumes, hasBody,adjustedActionType);
-		if(hasFormParameters) {
-			if(consumesValue == null || consumesValue.length == 0) {
-				consumes.add("application/x-www-form-urlencoded");
-			} else  {
-				boolean notContains = false;
-				for (String s : consumesValue) {
-					notContains = notContains || s.contains(FORM);
-					consumes.add(s);
-				}
-				if(notContains) {
-					consumes.add("application/x-www-form-urlencoded");
-				}
-			}
+		if(bodyType.getFormParameters().size() > 0) {
+			classConsumes.add(sanitizeMediaType(FORM));
 		}
-		for (String s : consumes) {
-			s = sanitizeMediaType(s);
-			MimeType bodyType = new MimeType();
-			tryAppendSchemesAndExamples(m,bodyType, s, parameterName, StructureType.COMMON);
-			bodyType.setType(s);
-			if (s.contains(FORM)) {
-				for (IParameterModel pm : parameters) {
-					if (pm.hasAnnotation(FORM_PARAM)) {
-						IAnnotationModel paramAnnotation = pm.getAnnotation(FORM_PARAM);
-						FormParameter vl = new FormParameter();
-						String paramName = configureParam(pm,vl,documentation,paramAnnotation);
-						ArrayList<FormParameter> arrayList = new ArrayList<FormParameter>();
-						arrayList.add(vl);
-						if (bodyType.getFormParameters() == null) {
-							bodyType.setFormParameters(new HashMap<String, java.util.List<FormParameter>>());
-						}
-						bodyType.getFormParameters().put(paramName,	arrayList);
-					}
-				}
-			}
-			action.getBody().put(s, bodyType);
+
+		Set<String> consumesValue = extractMediaTypes(m, CONSUMES, classConsumes, m.getBodyType() != null, adjustedActionType);
+		for (String s : consumesValue) {
+			bodyType.setType(sanitizeMediaType(s));
+			action.addBody(bodyType);
+			tryAppendSchemesAndExamples(m,bodyType, bodyType.getType(), parameterName, StructureType.COMMON);
+
 		}
 	}
+	private Set<String> extractMediaTypes(IMethodModel m, String annotationName, Set<String> defaultValues, boolean useDefault, ActionType at) {
+		Set<String> values = new HashSet<String>();
+		if(useDefault && defaultValues!=null){
+			values.addAll(defaultValues);
+		}
 
+		IAnnotationModel apiOperation1 = m.getAnnotation(API_OPERATION);
+		String[] mediaTypes = null;
+		if(apiOperation1!=null){
+			String value = apiOperation1.getValue(annotationName.toLowerCase());
+			if(value!=null){
+				mediaTypes = value.split(",");
+			}
+		}
+		if(values==null){
+			mediaTypes = m.getAnnotationValues(annotationName);
+		}
+		if(mediaTypes!=null) {
+			for(int i = 0 ; i < mediaTypes.length ;i++){
+				values.add(mediaTypes[i].trim());
+			}
+		}
+
+		return values;
+	}
 	private void tryAppendSchemesAndExamples(IMethodModel m,MimeType bodyType, String mediaType, String typeName, StructureType st) {
 		ArrayList<String> mediaTypes = new ArrayList<String>();
 		if (mediaType.contains(XML)) {
@@ -545,59 +531,59 @@ public abstract class ResourceVisitor {
 			mediaTypes.add(JSON);
 		}
 		for(String mt:mediaTypes){
-			File schemafile = constructFileLocation(typeName, SCHEMA, mt, st);
-			if(schemafile.exists()){
-				bodyType.setSchema(getSchemaName(typeName, mediaType, st));
-			}
-			File examplefile = constructFileLocation(typeName, EXAMPLE, mt, st);
+			bodyType.setSchema(getSchemaName(typeName, mediaType, st));
 			String relativePath = constructRelativeFilePath(typeName, EXAMPLE, mt, st);
-			if(examplefile.exists()){
-				bodyType.setExample(relativePath);
-				bodyType.setExampleOrigin(relativePath);
-			}
-			String example = m.getBasicDocInfo().getDocumentation("@example");
-			if(isExamplePath(example)) {
-				File exampleFile = null;
-				if(example.startsWith("file:")) {
-					exampleFile = new File(example.substring("file:".length()));
-				} else if(example.startsWith("classpath:")) {
-					exampleFile = new File(m.getJavaType().getResource(example.replace("classpath:", "")).getFile());
-				}
-				if(exampleFile!=null && exampleFile.exists() && exampleFile.isFile()) {
-					String ext = mt.contains(XML) ? ".xml" : mt.contains(JSON) ? ".json" : "";
-					exampleFile = transformFileFormat(exampleFile,typeName,ext);
-					if(exampleFile.getName().toLowerCase().endsWith(ext)) {
-						File parentDir = examplefile.getParentFile();
-						try {
-							exampleFile = copyFileToDirectory(exampleFile, parentDir, ext);
-							relativePath = EXAMPLES_FOLDER + "/" + exampleFile.getName();
-							bodyType.setExample(relativePath);
-							bodyType.setExampleOrigin(relativePath);
-						} catch (IOException e) {
-							logger.error("can't copy file '"+exampleFile.getAbsolutePath()+"' to directory '"+parentDir.getAbsolutePath()+"'" );
-						}
-					}
-				}
-			} else if(isExampleContent(example)) {
-				try {
-					if(examplefile.getName().endsWith(".json")) {
-						if(example.startsWith("<")){
-							example = JsonUtil.convertToJSON(example,true,false);
-						}
-						FileUtils.write(examplefile,example);
-					} else if(examplefile.getName().endsWith(".xml")) {
-						if(example.startsWith("{") || example.startsWith("[")){
-							example = JsonUtil.convertJsonToXML(example, typeName);
-						}
-						FileUtils.write(examplefile,example);
-					}
-				} catch (IOException e) {
-					logger.error("can't write content to file:'{}'",examplefile.getAbsolutePath(),e);
-				} catch (JSONException e) {
-					logger.error("can't parse json string",e);
-				}
-			}
+			bodyType.setExample(relativePath);
+			bodyType.setExampleOrigin(relativePath);
+
+			overrideDefaultExample(m, bodyType, typeName, mt, constructFileLocation(typeName, EXAMPLE, mt, st));
 		}
+	}
+
+	private void overrideDefaultExample(IMethodModel m, MimeType bodyType, String typeName, String mt, File defaultExampleFile) {
+		String relativePath;
+		String example = m.getBasicDocInfo().getDocumentation("@example");
+		if(isExamplePath(example)) {
+            File exampleFile = null;
+            if(example.startsWith("file:")) {
+                exampleFile = new File(example.substring("file:".length()));
+            } else if(example.startsWith("classpath:")) {
+                exampleFile = new File(m.getJavaType().getResource(example.replace("classpath:", "")).getFile());
+            }
+            if(exampleFile!=null && exampleFile.exists() && exampleFile.isFile()) {
+                String ext = mt.contains(XML) ? ".xml" : mt.contains(JSON) ? ".json" : "";
+                exampleFile = transformFileFormat(exampleFile,typeName,ext);
+                if(exampleFile.getName().toLowerCase().endsWith(ext)) {
+                    File parentDir = defaultExampleFile.getParentFile();
+                    try {
+                        exampleFile = copyFileToDirectory(exampleFile, parentDir, ext);
+                        relativePath = EXAMPLES_FOLDER + "/" + exampleFile.getName();
+                        bodyType.setExample(relativePath);
+                        bodyType.setExampleOrigin(relativePath);
+                    } catch (IOException e) {
+                        logger.error("can't copy file '"+exampleFile.getAbsolutePath()+"' to directory '"+parentDir.getAbsolutePath()+"'" );
+                    }
+                }
+            }
+        } else if(isExampleContent(example)) {
+            try {
+                if(defaultExampleFile.getName().endsWith(".json")) {
+                    if(example.startsWith("<")){
+                        example = JsonUtil.convertToJSON(example,true,false);
+                    }
+                    FileUtils.write(defaultExampleFile,example);
+                } else if(defaultExampleFile.getName().endsWith(".xml")) {
+                    if(example.startsWith("{") || example.startsWith("[")){
+                        example = JsonUtil.convertJsonToXML(example, typeName);
+                    }
+                    FileUtils.write(defaultExampleFile,example);
+                }
+            } catch (IOException e) {
+                logger.error("can't write content to file:'{}'",defaultExampleFile.getAbsolutePath(),e);
+            } catch (JSONException e) {
+                logger.error("can't parse json string",e);
+            }
+        }
 	}
 
 	protected boolean isExamplePath(String examplePath) {
@@ -694,15 +680,9 @@ public abstract class ResourceVisitor {
 					
 					String adjustedReturnName = returnName;
 					String responseQualifiedName = subAnn.getValue(RESPONSE);					
-					boolean isValid = Integer.parseInt(code)<400;
-					if(responseQualifiedName!=null&&isValid){
-						try {
-							Class<?> responseClass = classLoader.loadClass(responseQualifiedName);
-							ReflectionType reflectionType = new ReflectionType(responseClass);
-							generateXMLSchema(reflectionType);
-						} catch (ClassNotFoundException e) {
-							e.printStackTrace();
-						}
+					boolean isValid = Integer.parseInt(code) < 400;
+					if(responseQualifiedName != null && isValid){
+						generateXMLSchema(m.getDeclaredType().resolveClass(responseQualifiedName));
 						adjustedReturnName = firstLetterToLowerCase(getSimpleName(responseQualifiedName));
 					}
 					ResponseModel response = responses.get(code);
@@ -717,16 +697,13 @@ public abstract class ResourceVisitor {
 				}
 			}
 		}
-
-		String[] producesValues = new String[0];
+		Set<String> producesValues = new HashSet<String>();
 		ITypeModel returnType = m.getReturnedType();
 		if(returnType!=null){
-			boolean returnsValue = !returnType.getName().toLowerCase().equals("void");
-			producesValues = extractMediaTypes(m, PRODUCES, classProduces, returnsValue, null);
-			if(producesValues!=null){
-				for (ResponseModel responseModel : responses.values()){
-					responseModel.setProduces(producesValues);
-				}
+			boolean returnValue = returnType.getActualClass() != Void.class && returnType.getActualClass() != void.class;
+			producesValues = extractMediaTypes(m, PRODUCES, classProduces, returnValue, null);
+			for (ResponseModel responseModel : responses.values()){
+				responseModel.setProduces(producesValues.toArray(new String[0]));
 			}
 		}
 		IAnnotationModel apiOperation = m.getAnnotation(API_OPERATION);
@@ -734,13 +711,7 @@ public abstract class ResourceVisitor {
 			StructureType st = getStructureType(m);
 			String responseQualifiedName = apiOperation.getValue(RESPONSE);
 			if(responseQualifiedName!=null){
-				try {
-					Class<?> responseClass = classLoader.loadClass(responseQualifiedName);
-					ReflectionType reflectionType = new ReflectionType(responseClass);
-					generateXMLSchema(reflectionType);
-				} catch (ClassNotFoundException e) {
-					e.printStackTrace();
-				}	
+				generateXMLSchema(m.getDeclaredType().resolveClass(responseQualifiedName));
 				String adjustedReturnType = firstLetterToLowerCase(getSimpleName(responseQualifiedName));
 				mainResponse.setReturnTypeName(adjustedReturnType);
 				mainResponse.setStructureType(st);
@@ -794,45 +765,6 @@ public abstract class ResourceVisitor {
 			}
 		}
 		return st;
-	}
-
-	
-	private String[] extractMediaTypes(IMethodModel m, String annotationName, String[] defaultValues, boolean useDefault, ActionType at) {
-		
-		useDefault = at != ActionType.GET;
-		
-		IAnnotationModel apiOperation1 = m.getAnnotation(API_OPERATION);		
-		String[] values = null;
-		
-		if(apiOperation1!=null){
-			String value = apiOperation1.getValue(annotationName.toLowerCase());
-			if(value!=null){
-				values = value.split(",");
-				for(int i = 0 ; i < values.length ;i++){
-					values[i] = values[i].trim();
-				}
-			}
-		}
-		if(values==null){	
-			values = m.getAnnotationValues(annotationName);
-		}
-		if(values!=null){
-			return values;
-		}
-		if(!useDefault){
-			return null;
-		}
-		if (values == null) {
-			values = defaultValues;
-		}
-		return values;
-	}
-
-	private String getSimpleName(String qName) {
-		
-		int ind = qName.lastIndexOf('.');
-		String simpleName = qName.substring(ind + 1);
-		return simpleName;
 	}
 
 	private ActionType adjustActionType(IMethodModel m, ActionType actionType) {
@@ -1116,7 +1048,40 @@ public abstract class ResourceVisitor {
 		return result;
 	}
 
+	protected String getSimpleQualifiedName(String genericName){
+		if(genericName.equals("?")) {
+			return "object";
+		}
+		if(genericName.contains("<")) {
+			String simpleName = getSimpleName(genericName.substring(0,genericName.indexOf("<")));
+			String parameterTypeName =  genericName.substring(genericName.indexOf("<") + 1,genericName.lastIndexOf(">"));
+			return simpleName + "-" +  getSimpleQualifiedName(parameterTypeName);
+		}else {
+			String name = getSimpleName(genericName);
+			while(name.contains("[]")) {
+				name = name.replace("[]","-array");
+			}
+			return name;
+		}
+	}
 
+	protected String getSimpleName(String className){
+		if(className.contains(",")) {
+			String returnName = "";
+			String[] classNames = className.split(",");
+			for (String name: classNames) {
+				if(!returnName.isEmpty()) {
+					returnName += "-";
+				}
+				returnName += firstLetterToLowerCase(name.substring(name.lastIndexOf(".")+1));
+			}
+			return returnName;
+		}
+		if(className.contains(".")) {
+			return firstLetterToLowerCase(className.substring(className.lastIndexOf(".")+1));
+		}
+		return firstLetterToLowerCase(className);
+	}
 
 	protected String getSchemaName(String typeName, String mediaType, StructureType st) {
 		StringBuilder bld = new StringBuilder(firstLetterToLowerCase(typeName));

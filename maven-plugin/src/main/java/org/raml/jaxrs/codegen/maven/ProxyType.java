@@ -135,11 +135,6 @@ public class ProxyType implements ITypeModel {
 	}
 
 	@Override
-	public List<ITypeParameter> getTypeParameters() {
-		return registry.getType(key).getTypeParameters();
-	}
-
-	@Override
 	public ITypeModel getSuperClass() {
 		return registry.getType(key).getSuperClass();
 	}

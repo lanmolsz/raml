@@ -16,18 +16,22 @@
 package org.raml.jaxrs.codegen.spoon;
 
 import com.mulesoft.jaxrs.raml.annotation.model.*;
+import com.mulesoft.jaxrs.raml.annotation.model.reflection.AnnotationModel;
+import org.apache.maven.plugin.logging.Log;
+import org.apache.maven.plugin.logging.SystemStreamLog;
 import org.raml.jaxrs.codegen.maven.GenericTypeModelRegistry;
 import org.raml.jaxrs.codegen.maven.MetadataModelRegistry;
 import org.raml.jaxrs.codegen.maven.TypeModelRegistry;
 import org.raml.jaxrs.codegen.model.*;
+import org.raml.jaxrs.codegen.util.ClassUtils;
 import spoon.reflect.declaration.*;
 import spoon.reflect.factory.Factory;
 import spoon.reflect.reference.*;
 
 import java.lang.annotation.Annotation;
-import java.lang.reflect.Member;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
+import java.lang.reflect.*;
+import java.net.URI;
+import java.net.URL;
 import java.util.*;
 
 /**
@@ -37,7 +41,7 @@ import java.util.*;
  * @version $Id: $Id
  */
 public class SpoonProcessor {
-
+    private final static Log log = new SystemStreamLog();
     private static final String API_OPERATION = "ApiOperation";
 
     private static final String SWAGGER_API = "Api";
@@ -57,9 +61,20 @@ public class SpoonProcessor {
     }
 
 
-    private boolean isIgnoreType(String paramType) {
-        if(ignoreClasses.contains(paramType)){
-            return true;
+    private boolean isIgnoreType(final String paramType){
+        if(paramType.endsWith("[]") || (paramType.contains("<") && paramType.contains(">"))) return false;
+        try {
+            Class<?> clazz = ClassUtils.loadClass(factory.getEnvironment().getClassLoader(),paramType);
+            if(ignoreClasses.contains(clazz)){
+                return true;
+            }
+            for (Class<?> assignableClass : ignoreClassInheritTree){
+                if(assignableClass.isAssignableFrom(clazz)) {
+                    return true;
+                }
+            }
+        } catch (ClassNotFoundException e) {
+            log.info("##################################Unknown type : "+paramType);
         }
         for(String ignorePackage : ignorePackages) {
             if(paramType.startsWith(ignorePackage)) {
@@ -69,20 +84,18 @@ public class SpoonProcessor {
         return false;
     }
 
-    private static HashSet<String> ignoreClasses = new HashSet<String>(Arrays.asList(
-            "byte", "java.lang.Byte",
-            "short", "java.lang.Short",
-            "int", "java.lang.Integer",
-            "long", "java.lang.Long",
-            "float", "java.lang.Float",
-            "double", "java.lang.Double",
-            "character", "java.lang.Character",
-            "boolean", "java.lang.Boolean",
-            "java.math.BigDecimal","java.math.BigInteger",
-            "java.lang.String","java.lang.Object",
-            "java.lang.Thread","java.lang.ThreadLocal"
+
+    private static HashSet<Class<?>> ignoreClasses = new HashSet<Class<?>>(Arrays.asList(
+        boolean.class,byte.class,char.class,short.class,
+            int.class,long.class,float.class,double.class,void.class,
+            Boolean.class,Character.class,Void.class,
+            UUID.class,URI.class,URL.class,Object.class
     ));
 
+    private static HashSet<Class<?>> ignoreClassInheritTree = new HashSet<Class<?>>(Arrays.asList(
+            Throwable.class,Number.class,CharSequence.class,
+            Date.class,Calendar.class,Type.class,Annotation.class
+    ));
 
     private List<String> ignorePackages = new ArrayList<String>(Arrays.asList(
             "javax.servlet","javax.ws.rs","org.apache.cxf.jaxrs"
@@ -262,7 +275,7 @@ public class SpoonProcessor {
 
         TypeModel type  = newTypeModel(typeReference);
 
-        if(isIgnoreType(genericName) || typeReference.getActualClass() == Object.class) {
+        if(typeReference.getActualClass() == Object.class || isIgnoreType(genericName)) {
             return type;
         }
 
@@ -294,7 +307,7 @@ public class SpoonProcessor {
             return map;
         }
 
-        Map<CtTypeReference<?>,CtTypeReference<?>> mapping = getTypeMapping(typeReference);
+        Map<String,CtTypeReference<?>> mapping = getTypeMapping(typeReference);
 
         Collection<CtFieldReference<?>> fields = typeReference.getDeclaredFields();
         for(CtFieldReference<?> m : fields){
@@ -303,7 +316,8 @@ public class SpoonProcessor {
 
         Collection<CtExecutableReference<?>> methods = typeReference.getDeclaredExecutables();
         for(CtExecutableReference<?> m : methods){
-            type.addMethod(processMethodReference(type,m,mapping));
+            if(m.getSimpleName().equals("<init>")) continue;
+            type.addMethod(processMethodReference(type, m, mapping));
         }
         return type;
     }
@@ -322,7 +336,7 @@ public class SpoonProcessor {
         return type;
     }
 
-    private IMethodModel processMethodReference(TypeModel declareType,CtExecutableReference<?> m,Map<CtTypeReference<?>,CtTypeReference<?>> mapping) {
+    private IMethodModel processMethodReference(TypeModel declareType,CtExecutableReference<?> m,Map<String,CtTypeReference<?>> mapping) {
 
         MethodModel method = new MethodModel();
         fillReference(method,m);
@@ -335,13 +349,23 @@ public class SpoonProcessor {
             method.addParameter(processParameterReference(p,mapping));
         }
         if(actualMethod!=null){
-            fillType(declareType, method, getActualType(mapping,m.getType()));
+            CtTypeReference<?> reference = null;
+            Type type = actualMethod.getGenericReturnType();
+            if(type.getClass().getPackage() == Package.getPackage("sun.reflect.generics.reflectiveObjects")){
+                reference = mapping.get(type.toString());
+            } else if(type instanceof Class){
+                reference = mapping.get(((Class) type).getName());
+            }
+            if(reference == null) {
+                reference = m.getType();
+            }
+            fillType(declareType, method, reference);
             adjustModifiers(method, actualMethod);
         }
         return method;
     }
 
-    private IParameterModel processParameterReference(CtTypeReference<?> paramTypeReference,Map<CtTypeReference<?>,CtTypeReference<?>> mapping) {
+    private IParameterModel processParameterReference(CtTypeReference<?> paramTypeReference,Map<String,CtTypeReference<?>> mapping) {
 
         ParameterModel parameterModel = new ParameterModel();
         CtTypeReference<?> actualType = getActualType(mapping,paramTypeReference);
@@ -349,7 +373,6 @@ public class SpoonProcessor {
         parameterModel.setActualType(actualType.toString());
         parameterModel.setRequired(paramTypeReference.isPrimitive());
         parameterModel.setName(actualType.getSimpleName());
-
         if(isNotGenericType(actualType)) {
             fillReference(parameterModel,actualType);
         }
@@ -357,8 +380,8 @@ public class SpoonProcessor {
     }
 
     private void fillReference( BasicModel model, CtReference ref) {
-        model.setName(ref.getSimpleName());
         try{
+            model.setName(ref.getSimpleName());
             if(ref.getDeclaration() !=null) {
                 List<CtAnnotation<? extends Annotation>> annotations = ref.getDeclaration().getAnnotations();
                 if(annotations!=null){
@@ -368,29 +391,41 @@ public class SpoonProcessor {
                 }
             }
         } catch(Exception e){
-            e.printStackTrace();
+            log.warn("##########################fillReference###model:" + model.getType() + " " + model.getName());
+            log.warn("##########################fillReference###ref:" + ref.getSimpleName() + " " + ref);
         }
     }
 
 
-    private IFieldModel processFieldReference(TypeModel declareType,CtFieldReference<?> m,Map<CtTypeReference<?>,CtTypeReference<?>> mapping) {
+    private IFieldModel processFieldReference(TypeModel declareType,CtFieldReference<?> m,Map<String,CtTypeReference<?>> mapping) {
         FieldModel fm=new FieldModel();
         fillReference(fm, m);
-        Member actualField = m.getActualField();
+        Field actualField = (Field)m.getActualField();
         if(actualField!=null){
-            fillType(declareType, fm,getActualType(mapping, m.getType()));
+            CtTypeReference<?> reference = null;
+            Type type = actualField.getGenericType();
+            if(type.getClass().getPackage() == Package.getPackage("sun.reflect.generics.reflectiveObjects")){
+                reference = mapping.get(type.toString());
+            } else if(type instanceof Class){
+                reference = mapping.get(((Class) type).getName());
+            }
+            if(reference == null) {
+                reference = m.getType();
+            }
+            fillType(declareType, fm,reference);
             adjustModifiers(fm, actualField);
         }
         return fm;
     }
 
-    private void fillType(TypeModel declareType, BasicModel fm, CtTypeReference<?> type) {
+    private void fillType(TypeModel declareType, MemberModel fm, CtTypeReference<?> type) {
         if(type==null){
             return;
         }
         ITypeModel processedType = processTypeReference(type);
         fm.setJavaClass(type.getActualClass());
         fm.setType(processedType);
+        fm.setDeclaredType(declareType);
         if(fm instanceof MethodModel) {
             MethodModel method = (MethodModel) fm;
             method.setReturnedType(processedType);
@@ -409,28 +444,24 @@ public class SpoonProcessor {
         }
     }
 
-    private Map<CtTypeReference<?>,CtTypeReference<?>> getTypeMapping(CtTypeReference<?> typeReference) {
-        Map<CtTypeReference<?>,CtTypeReference<?>> mapping = new HashMap<CtTypeReference<?>, CtTypeReference<?>>();
+    private Map<String,CtTypeReference<?>> getTypeMapping(CtTypeReference<?> typeReference) {
+        Map<String,CtTypeReference<?>> mapping = new HashMap<String, CtTypeReference<?>>();
         List<CtTypeReference<?>> actualType = typeReference.getActualTypeArguments();
         if(actualType==null || actualType.size() == 0) {
             return mapping;
         }
-        CtType<Object> ctType = factory.Class().get(typeReference.getQualifiedName());
-        if(ctType == null) {
-            ctType = factory.Type().get(typeReference.getQualifiedName());
-        }
-        if(ctType != null) {
-            List<CtTypeReference<?>> ftp = ctType.getFormalTypeParameters();
-            if(ftp != null && ftp.size() == actualType.size()) {
-                for (int i = 0;i<ftp.size();i++) {
-                    mapping.put(ftp.get(i),actualType.get(i));
+        TypeVariable<? extends Class<?>>[] ftp = typeReference.getActualClass().getTypeParameters();
+        if(ftp != null) {
+            if(ftp != null && ftp.length == actualType.size()) {
+                for (int i = 0;i<ftp.length;i++) {
+                    mapping.put(ftp[i].getName(),actualType.get(i));
                 }
             }
         }
         return mapping;
     }
 
-    private CtTypeReference<?> getActualType(Map<CtTypeReference<?>,CtTypeReference<?>> mapping,CtTypeReference<?> reference) {
+    private CtTypeReference<?> getActualType(Map<String,CtTypeReference<?>> mapping,CtTypeReference<?> reference) {
         Class<?> actualClass = reference.getActualClass();
         if(actualClass == null) {
             return reference;
@@ -438,8 +469,8 @@ public class SpoonProcessor {
         if(actualClass.getName().equals(reference.getQualifiedName())) {
             return reference;
         }
-        if(mapping.containsKey(reference)) {
-            return mapping.get(reference);
+        if(mapping.containsKey(reference.getSimpleName())) {
+            return mapping.get(reference.getSimpleName());
         }
         return reference;
     }
@@ -523,6 +554,6 @@ public class SpoonProcessor {
     }
 
     private IAnnotationModel transformAnnotation(CtAnnotation<? extends Annotation> annotation) {
-        return new com.mulesoft.jaxrs.raml.annotation.model.reflection.AnnotationModel(annotation.getActualAnnotation());
+        return new AnnotationModel(annotation.getActualAnnotation());
     }
 }

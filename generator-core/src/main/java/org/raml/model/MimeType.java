@@ -16,10 +16,7 @@
 package org.raml.model;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import org.raml.model.parameter.AbstractParam;
 import org.raml.model.parameter.FormParameter;
@@ -45,7 +42,7 @@ public class MimeType {
     private String example;
 
     @Mapping
-    private Map<String, List<FormParameter>> formParameters;
+    private Map<String, List<FormParameter>> formParameters = new HashMap<String, List<FormParameter>>();
 
     private String exampleOrigin;
 
@@ -147,7 +144,6 @@ public class MimeType {
      * @return a {@link java.util.Map} object.
      */
     public Map<String, List<FormParameter>> getFormParameters() {
-        //TODO throw exception if invalid type?
         return formParameters;
     }
 

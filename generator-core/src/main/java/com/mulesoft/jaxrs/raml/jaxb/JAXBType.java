@@ -129,7 +129,7 @@ public class JAXBType extends JAXBModelElement {
                     IParameterModel[] params = setter.getParameters();
                     if (params != null && params.length == 1) {
                         String paramType = params[0].getParameterActualType();
-                        if (paramType.equals(qName)) {
+                        if (paramType.equals(qName) || paramType.equals("java.lang.Object")) {//isGeneric
                             return setter;
                         }
                         ITypeModel paramModel = model.resolveClass(paramType);

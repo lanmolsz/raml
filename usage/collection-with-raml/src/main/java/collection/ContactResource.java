@@ -9,6 +9,7 @@ import javax.ws.rs.Produces;
  * Created by E355 on 2016/4/20.
  */
 @Path("/contacts")
+@Produces("application/json")
 public class ContactResource {
 
     /**
@@ -31,7 +32,6 @@ public class ContactResource {
 
     @Path("/{id}")
     @GET
-    @Produces("application/json")
     public Contact getContact(@PathParam("id") String id){
         return null;
     }

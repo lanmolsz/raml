@@ -1,0 +1,31 @@
+{
+  "$schema" : "http://json-schema.org/draft-03/schema" ,
+  "required" : true ,
+  "type" : "object" ,
+  "Message" : {
+    "required" : false ,
+    "type" : "string"
+  } ,
+  "Total" : {
+    "required" : false ,
+    "type" : "number"
+  } ,
+  "Data" : {
+    "required" : false ,
+    "type" : "array" ,
+    "items" : [
+      {
+        "required" : false ,
+        "type" : "object" ,
+        "ProvinceId" : {
+          "required" : false ,
+          "type" : "string"
+        }
+      }
+    ]
+  } ,
+  "Result" : {
+    "required" : false ,
+    "type" : "number"
+  }
+}

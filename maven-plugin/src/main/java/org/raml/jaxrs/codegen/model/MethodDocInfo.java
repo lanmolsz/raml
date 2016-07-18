@@ -262,7 +262,7 @@ public class MethodDocInfo implements IDocInfo{
         private CommentHandlers(String code) {
             this.code = code;
         }
-        
+
         protected String processFormat(String line) {
         	return StringUtils.isBlank(line) ? "" : line;
         }

@@ -1,0 +1,15 @@
+{
+  "$schema" : "http://json-schema.org/draft-03/schema" ,
+  "required" : true ,
+  "type" : "object" ,
+  "Hobby" : {
+    "required" : false ,
+    "type" : "array" ,
+    "items" : [
+      {
+        "required" : false ,
+        "type" : "string"
+      }
+    ]
+  }
+}

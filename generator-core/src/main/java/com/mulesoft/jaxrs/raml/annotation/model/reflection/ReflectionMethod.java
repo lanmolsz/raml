@@ -123,15 +123,13 @@ public class ReflectionMethod extends ReflectionGenericElement<Method> implement
 
 	/** {@inheritDoc} */
 	@Override
-	public List<ITypeModel> getJAXBTypes() {
-		return Utils.getJAXBTypes(this.element);
-	}
-
-
-	/** {@inheritDoc} */
-	@Override
 	public Class<?> getJavaType() {
 		return element.getReturnType();
+	}
+
+	@Override
+	public ITypeModel getDeclaredType() {
+		return null;
 	}
 
 	public boolean hasGenericReturnType() {

@@ -203,6 +203,11 @@ public class Action {
         this.body = body;
     }
 
+
+    public void addBody(MimeType body) {
+        this.body.put(body.getType(),body);
+    }
+
     /**
      * <p>Getter for the field <code>responses</code>.</p>
      *

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<map>
+    <entry>
+        <key>str1234</key>
+        <value>
+            <Mobile>str1234</Mobile>
+            <Name>str1234</Name>
+            <Hobby>
+                <entry>
+                    <key>str1234</key>
+                    <value>str1234</value>
+                </entry>
+            </Hobby>
+            <LocationMap>
+                <entry>
+                    <key>str1234</key>
+                    <value>
+                        <Code>1234</Code>
+                        <Address>str1234</Address>
+                        <Name>str1234</Name>
+                    </value>
+                </entry>
+            </LocationMap>
+            <LocationArray>
+                <location>
+                    <Code>1234</Code>
+                    <Address>str1234</Address>
+                    <Name>str1234</Name>
+                </location>
+                <location>
+                    <Code>1234</Code>
+                    <Address>str1234</Address>
+                    <Name>str1234</Name>
+                </location>
+            </LocationArray>
+        </value>
+    </entry>
+</map>

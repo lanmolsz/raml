@@ -35,11 +35,9 @@ public abstract class BasicModel implements IBasicModel{
 
 	private static final String VALUE_METHOD_ID = "value"; //$NON-NLS-1$
 	
-	private LinkedHashMap<String,IAnnotationModel> annotations
-			= new LinkedHashMap<String, IAnnotationModel>();
+	private LinkedHashMap<String,IAnnotationModel> annotations = new LinkedHashMap<String, IAnnotationModel>();
 	
-	private LinkedHashMap<String,IAnnotationModel> annotationsByCanonicalName
-			= new LinkedHashMap<String, IAnnotationModel>();
+	private LinkedHashMap<String,IAnnotationModel> annotationsByCanonicalName = new LinkedHashMap<String, IAnnotationModel>();
 	
 	private String simpleName;
 	
@@ -49,17 +47,6 @@ public abstract class BasicModel implements IBasicModel{
 	private boolean  staticM;
 	private Class<?> actualClass;
 	private ITypeModel type;
-	private List<ITypeModel> jaxbTypes;
-
-	
-	/**
-	 * <p>getJAXBType.</p>
-	 *
-	 * @return a {@link com.mulesoft.jaxrs.raml.annotation.model.ITypeModel} object.
-	 */
-	public List<ITypeModel> getJAXBTypes() {
-		return this.jaxbTypes;
-	}
 
 	/**
 	 * <p>getJavaType.</p>
